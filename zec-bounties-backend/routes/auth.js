@@ -11,6 +11,7 @@ const {
 } = require("../middleware/auth");
 const { verifyZaddress, verifyUaddress } = require("../helpers/db-query.js");
 const { isSafeShieldedAddress } = require("../helpers/validateAddress.js");
+const { selectVerifiedPrimaryEmail } = require("../helpers/githubEmail.js");
 const {
   getLatestZcashParams,
   getSystemWalletParams,
@@ -92,12 +93,16 @@ router.get("/github/callback", async (req, res) => {
     const githubUser = userResponse.data;
     const emails = emailResponse.data;
 
-    const primaryEmail =
-      emails.find((email) => email.primary)?.email || githubUser.email;
+    // Only a VERIFIED primary email may key account creation/linking. GitHub
+    // returns unverified addresses (which can belong to someone else), so using
+    // an unverified email — or the unverifiable public profile email
+    // (githubUser.email) — as the account key enables OAuth account takeover /
+    // pre-account-hijack.
+    const primaryEmail = selectVerifiedPrimaryEmail(emails);
 
     if (!primaryEmail) {
-      console.log("No email found for GitHub user");
-      return res.redirect(`${FRONTEND_URL}/login?error=no_email`);
+      console.log("No verified primary email for GitHub user");
+      return res.redirect(`${FRONTEND_URL}/login?error=unverified_email`);
     }
 
     let user = await prisma.user.findUnique({
