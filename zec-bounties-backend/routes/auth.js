@@ -4,6 +4,7 @@ const axios = require("axios");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../prisma/client");
+const { buildCallbackRedirect } = require("../helpers/authRedirect");
 const {
   authenticate,
   isAdmin,
@@ -171,8 +172,10 @@ if (!user) {
 
     const token = signSessionToken(user);
 
-    const returnState = isLoginState(loginState) ? `&state=${loginState}` : "";
-    res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}${returnState}`);
+    // Deliver the session token in the URL fragment, not the query string, so
+    // the 7-day bearer can't leak via server logs or the Referer header.
+    const state = isLoginState(loginState) ? loginState : null;
+    res.redirect(buildCallbackRedirect(FRONTEND_URL, token, state));
   } catch (error) {
     console.error("GitHub OAuth error:", error.message);
     res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
