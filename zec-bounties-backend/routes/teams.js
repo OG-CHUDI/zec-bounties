@@ -403,14 +403,6 @@ async function getTeamDonationAddress(teamId) {
   }
 }
 
-async function isCommunityMember(teamId, userId) {
-  const fav = await prisma.teamFavorite.findUnique({
-    where: { userId_teamId: { userId, teamId } },
-    select: { userId: true },
-  });
-  return Boolean(fav);
-}
-
 // ─── Team CRUD ───────────────────────────────────────────────────────────────
 
 router.post("/", authenticate, async (req, res) => {
